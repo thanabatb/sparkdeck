@@ -16,8 +16,11 @@ import type {
   TaskId
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const STORAGE_FILE = path.join(DATA_DIR, "sparkdeck.json");
+const isVercelRuntime = Boolean(process.env.VERCEL);
+const STORAGE_FILE = isVercelRuntime
+  ? path.join("/tmp", "sparkdeck.json")
+  : path.join(process.cwd(), "data", "sparkdeck.json");
+const STORAGE_DIR = path.dirname(STORAGE_FILE);
 
 function createDefaultCounters(): SparkDeckCounters {
   return {
@@ -57,7 +60,7 @@ function normalizeStorageData(input: unknown): SparkDeckData {
 }
 
 async function ensureStorageFileExists(): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(STORAGE_DIR, { recursive: true });
 
   try {
     await readFile(STORAGE_FILE, "utf8");
