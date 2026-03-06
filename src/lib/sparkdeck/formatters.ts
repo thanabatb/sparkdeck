@@ -28,23 +28,37 @@ export function formatBuildCreatedResponse(build: Build): string {
   return `${build.id} started\nTarget: ${target}\nStatus: ${toStatusLabel(build.status)}`;
 }
 
+export function formatSparkStatusResponse(item: Extract<ItemStatusResponse, { type: "spark" }>): string {
+  return `${item.id}\nTitle: ${item.title}\nStatus: ${toStatusLabel(item.status)}`;
+}
+
+export function formatTaskStatusResponse(item: Extract<ItemStatusResponse, { type: "task" }>): string {
+  const lines = [`${item.id}`, `Title: ${item.title}`, `Status: ${toStatusLabel(item.status)}`];
+
+  if (item.sourceSparkId) {
+    lines.push(`Source: ${item.sourceSparkId}`);
+  }
+
+  return lines.join("\n");
+}
+
+export function formatBuildStatusResponse(
+  item: Extract<ItemStatusResponse, { type: "build" }>
+): string {
+  const target = item.targetTaskId ?? item.targetText ?? "N/A";
+  return `${item.id}\nTarget: ${target}\nStatus: ${toStatusLabel(item.status)}`;
+}
+
 export function formatItemStatusResponse(item: ItemStatusResponse): string {
   if (item.type === "spark") {
-    return `${item.id}\nTitle: ${item.title}\nStatus: ${toStatusLabel(item.status)}`;
+    return formatSparkStatusResponse(item);
   }
 
   if (item.type === "task") {
-    const lines = [`${item.id}`, `Title: ${item.title}`, `Status: ${toStatusLabel(item.status)}`];
-
-    if (item.sourceSparkId) {
-      lines.push(`Source: ${item.sourceSparkId}`);
-    }
-
-    return lines.join("\n");
+    return formatTaskStatusResponse(item);
   }
 
-  const target = item.targetTaskId ?? item.targetText ?? "N/A";
-  return `${item.id}\nTarget: ${target}\nStatus: ${toStatusLabel(item.status)}`;
+  return formatBuildStatusResponse(item);
 }
 
 export function formatErrorResponse(error: unknown): string {
