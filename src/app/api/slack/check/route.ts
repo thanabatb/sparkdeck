@@ -10,7 +10,9 @@ import { parseSlackSlashCommandPayload } from "@/lib/sparkdeck/parse";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const payload = await parseSlackSlashCommandPayload(request);
+    const payload = await parseSlackSlashCommandPayload(request, {
+      expectedCommand: "/check"
+    });
     const itemStatus = await getItemStatus(payload.text);
 
     if (itemStatus.type === "spark") {
@@ -23,6 +25,8 @@ export async function POST(request: Request): Promise<Response> {
 
     return createSlackTextResponse(formatBuildStatusResponse(itemStatus));
   } catch (error) {
-    return createSlackTextResponse(formatErrorResponse(error));
+    const status =
+      error instanceof Error && error.message === "Malformed Slack payload." ? 400 : 200;
+    return createSlackTextResponse(formatErrorResponse(error), status);
   }
 }
