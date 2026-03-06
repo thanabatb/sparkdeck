@@ -77,3 +77,56 @@ export function createSlackTextResponse(text: string, status = 200): Response {
     }
   });
 }
+
+function toEpochMillis(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function sortNewestFirst<T extends { createdAt: string; id: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const byCreatedAt = toEpochMillis(b.createdAt) - toEpochMillis(a.createdAt);
+    if (byCreatedAt !== 0) {
+      return byCreatedAt;
+    }
+
+    return b.id.localeCompare(a.id);
+  });
+}
+
+export function formatSparksListResponse(sparks: Spark[]): string {
+  if (sparks.length === 0) {
+    return "SPARKS\nNo sparks found.";
+  }
+
+  const lines = sortNewestFirst(sparks).map(
+    (spark) => `${spark.id} — ${spark.title} — ${toStatusLabel(spark.status)}`
+  );
+
+  return ["SPARKS", ...lines].join("\n");
+}
+
+export function formatTasksListResponse(tasks: Task[]): string {
+  if (tasks.length === 0) {
+    return "TASKS\nNo tasks found.";
+  }
+
+  const lines = sortNewestFirst(tasks).map(
+    (task) => `${task.id} — ${task.title} — ${toStatusLabel(task.status)}`
+  );
+
+  return ["TASKS", ...lines].join("\n");
+}
+
+export function formatBuildsListResponse(builds: Build[]): string {
+  if (builds.length === 0) {
+    return "BUILDS\nNo builds found.";
+  }
+
+  const lines = sortNewestFirst(builds).map((build) => {
+    const target = build.targetTaskId ?? build.targetText ?? "N/A";
+    return `${build.id} — ${target} — ${toStatusLabel(build.status)}`;
+  });
+
+  return ["BUILDS", ...lines].join("\n");
+}
