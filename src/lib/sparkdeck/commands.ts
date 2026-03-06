@@ -1,6 +1,15 @@
 import { generateBuildId, generateTaskId, parseItemId } from "./ids";
 import { readStorage, reserveNextSparkId, writeStorage } from "./storage";
-import type { Build, Spark, SparkId, Task, TaskId } from "./types";
+import type {
+  Build,
+  BuildStatus,
+  Spark,
+  SparkId,
+  SparkStatus,
+  Task,
+  TaskId,
+  TaskStatus
+} from "./types";
 import {
   createNotFoundMessage,
   parseItemIdOrThrow,
@@ -12,6 +21,29 @@ export const SPARK_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.sparkInputRequir
 export const FORGE_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.forgeInputRequired;
 export const BUILD_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.buildInputRequired;
 export const INVALID_ITEM_ID_MESSAGE = VALIDATION_MESSAGES.invalidIdFormat;
+export const UPDATE_ID_REQUIRED_MESSAGE = VALIDATION_MESSAGES.idRequired;
+export const UPDATE_STATUS_REQUIRED_MESSAGE = VALIDATION_MESSAGES.statusRequired;
+
+export const ALLOWED_SPARK_STATUSES: SparkStatus[] = [
+  "inbox",
+  "expanded",
+  "forged",
+  "archived"
+];
+
+export const ALLOWED_TASK_STATUSES: TaskStatus[] = [
+  "todo",
+  "in_progress",
+  "in_review",
+  "done"
+];
+
+export const ALLOWED_BUILD_STATUSES: BuildStatus[] = [
+  "pending",
+  "running",
+  "completed",
+  "failed"
+];
 
 export async function createSpark(inputText: string): Promise<Spark> {
   const normalizedText = requireNonEmptyInput(inputText, SPARK_INPUT_REQUIRED_MESSAGE);
@@ -111,6 +143,110 @@ export async function createBuild(input: string): Promise<Build> {
 
   storage.counters.build += 1;
   storage.builds.push(build);
+  await writeStorage(storage);
+
+  return build;
+}
+
+function normalizeStatusInput(status: string): string {
+  return status.trim().toLowerCase();
+}
+
+function validateSparkStatus(status: string): SparkStatus {
+  if (ALLOWED_SPARK_STATUSES.includes(status as SparkStatus)) {
+    return status as SparkStatus;
+  }
+
+  throw new Error(
+    `Invalid spark status. Use: ${ALLOWED_SPARK_STATUSES.join(", ")}.`
+  );
+}
+
+function validateTaskStatus(status: string): TaskStatus {
+  if (ALLOWED_TASK_STATUSES.includes(status as TaskStatus)) {
+    return status as TaskStatus;
+  }
+
+  throw new Error(`Invalid task status. Use: ${ALLOWED_TASK_STATUSES.join(", ")}.`);
+}
+
+function validateBuildStatus(status: string): BuildStatus {
+  if (ALLOWED_BUILD_STATUSES.includes(status as BuildStatus)) {
+    return status as BuildStatus;
+  }
+
+  throw new Error(
+    `Invalid build status. Use: ${ALLOWED_BUILD_STATUSES.join(", ")}.`
+  );
+}
+
+export async function updateSparkStatus(id: string, status: string): Promise<Spark> {
+  const normalizedId = requireNonEmptyInput(id, UPDATE_ID_REQUIRED_MESSAGE);
+  const normalizedStatus = requireNonEmptyInput(status, UPDATE_STATUS_REQUIRED_MESSAGE);
+  const parsed = parseItemIdOrThrow(normalizedId);
+  const nextStatus = validateSparkStatus(normalizeStatusInput(normalizedStatus));
+
+  if (parsed.kind !== "spark") {
+    throw new Error(createNotFoundMessage("spark", parsed.normalized));
+  }
+
+  const storage = await readStorage();
+  const spark = storage.sparks.find((item) => item.id === parsed.normalized);
+
+  if (!spark) {
+    throw new Error(createNotFoundMessage("spark", parsed.normalized));
+  }
+
+  spark.status = nextStatus;
+  spark.updatedAt = new Date().toISOString();
+  await writeStorage(storage);
+
+  return spark;
+}
+
+export async function updateTaskStatus(id: string, status: string): Promise<Task> {
+  const normalizedId = requireNonEmptyInput(id, UPDATE_ID_REQUIRED_MESSAGE);
+  const normalizedStatus = requireNonEmptyInput(status, UPDATE_STATUS_REQUIRED_MESSAGE);
+  const parsed = parseItemIdOrThrow(normalizedId);
+  const nextStatus = validateTaskStatus(normalizeStatusInput(normalizedStatus));
+
+  if (parsed.kind !== "task") {
+    throw new Error(createNotFoundMessage("task", parsed.normalized));
+  }
+
+  const storage = await readStorage();
+  const task = storage.tasks.find((item) => item.id === parsed.normalized);
+
+  if (!task) {
+    throw new Error(createNotFoundMessage("task", parsed.normalized));
+  }
+
+  task.status = nextStatus;
+  task.updatedAt = new Date().toISOString();
+  await writeStorage(storage);
+
+  return task;
+}
+
+export async function updateBuildStatus(id: string, status: string): Promise<Build> {
+  const normalizedId = requireNonEmptyInput(id, UPDATE_ID_REQUIRED_MESSAGE);
+  const normalizedStatus = requireNonEmptyInput(status, UPDATE_STATUS_REQUIRED_MESSAGE);
+  const parsed = parseItemIdOrThrow(normalizedId);
+  const nextStatus = validateBuildStatus(normalizeStatusInput(normalizedStatus));
+
+  if (parsed.kind !== "build") {
+    throw new Error(createNotFoundMessage("build", parsed.normalized));
+  }
+
+  const storage = await readStorage();
+  const build = storage.builds.find((item) => item.id === parsed.normalized);
+
+  if (!build) {
+    throw new Error(createNotFoundMessage("build", parsed.normalized));
+  }
+
+  build.status = nextStatus;
+  build.updatedAt = new Date().toISOString();
   await writeStorage(storage);
 
   return build;

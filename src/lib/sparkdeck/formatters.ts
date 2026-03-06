@@ -28,6 +28,18 @@ export function formatBuildCreatedResponse(build: Build): string {
   return `${build.id} started\nTarget: ${target}\nStatus: ${toStatusLabel(build.status)}`;
 }
 
+export function formatSparkUpdatedResponse(spark: Spark): string {
+  return `${spark.id} updated\nStatus: ${toStatusLabel(spark.status)}`;
+}
+
+export function formatTaskUpdatedResponse(task: Task): string {
+  return `${task.id} updated\nStatus: ${toStatusLabel(task.status)}`;
+}
+
+export function formatBuildUpdatedResponse(build: Build): string {
+  return `${build.id} updated\nStatus: ${toStatusLabel(build.status)}`;
+}
+
 export function formatSparkStatusResponse(item: Extract<ItemStatusResponse, { type: "spark" }>): string {
   return `${item.id}\nTitle: ${item.title}\nStatus: ${toStatusLabel(item.status)}`;
 }

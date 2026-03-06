@@ -18,7 +18,9 @@ export const VALIDATION_MESSAGES = {
   forgeInputRequired: "Please provide a spark ID or task description.",
   buildInputRequired: "Please provide a task ID or build target.",
   invalidIdFormat: "Invalid ID format. Use SPARK-001, TASK-001, or BUILD-001.",
-  malformedSlackPayload: "Malformed Slack payload."
+  malformedSlackPayload: "Malformed Slack payload.",
+  idRequired: "Please provide an item ID.",
+  statusRequired: "Please provide a status."
 } as const;
 
 const ITEM_LABEL_BY_KIND: Record<EntityKind, string> = {
