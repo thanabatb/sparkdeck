@@ -1,25 +1,20 @@
 import { generateBuildId, generateTaskId, parseItemId } from "./ids";
 import { readStorage, reserveNextSparkId, writeStorage } from "./storage";
 import type { Build, Spark, SparkId, Task, TaskId } from "./types";
+import {
+  createNotFoundMessage,
+  parseItemIdOrThrow,
+  requireNonEmptyInput,
+  VALIDATION_MESSAGES
+} from "./parse";
 
-export const SPARK_INPUT_REQUIRED_MESSAGE = "Please provide an idea description.";
-export const FORGE_INPUT_REQUIRED_MESSAGE =
-  "Please provide a Spark ID or task description.";
-export const BUILD_INPUT_REQUIRED_MESSAGE =
-  "Please provide a Task ID or build target description.";
-export const INVALID_ITEM_ID_MESSAGE =
-  "Invalid ID format. Use SPARK-001, TASK-001, or BUILD-001.";
-
-function normalizeInputText(inputText: string): string {
-  return inputText.trim();
-}
+export const SPARK_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.sparkInputRequired;
+export const FORGE_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.forgeInputRequired;
+export const BUILD_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.buildInputRequired;
+export const INVALID_ITEM_ID_MESSAGE = VALIDATION_MESSAGES.invalidIdFormat;
 
 export async function createSpark(inputText: string): Promise<Spark> {
-  const normalizedText = normalizeInputText(inputText);
-
-  if (!normalizedText) {
-    throw new Error(SPARK_INPUT_REQUIRED_MESSAGE);
-  }
+  const normalizedText = requireNonEmptyInput(inputText, SPARK_INPUT_REQUIRED_MESSAGE);
 
   const id = await reserveNextSparkId();
   const timestamp = new Date().toISOString();
@@ -41,11 +36,7 @@ export async function createSpark(inputText: string): Promise<Spark> {
 }
 
 export async function createTaskFromInput(input: string): Promise<Task> {
-  const normalizedInput = normalizeInputText(input);
-
-  if (!normalizedInput) {
-    throw new Error(FORGE_INPUT_REQUIRED_MESSAGE);
-  }
+  const normalizedInput = requireNonEmptyInput(input, FORGE_INPUT_REQUIRED_MESSAGE);
 
   const storage = await readStorage();
   const parsedId = parseItemId(normalizedInput);
@@ -60,7 +51,7 @@ export async function createTaskFromInput(input: string): Promise<Task> {
     const spark = storage.sparks.find((item) => item.id === sparkId);
 
     if (!spark) {
-      throw new Error(`Spark not found: ${sparkId}`);
+      throw new Error(createNotFoundMessage("spark", sparkId));
     }
 
     title = spark.title;
@@ -88,11 +79,7 @@ export async function createTaskFromInput(input: string): Promise<Task> {
 }
 
 export async function createBuild(input: string): Promise<Build> {
-  const normalizedInput = normalizeInputText(input);
-
-  if (!normalizedInput) {
-    throw new Error(BUILD_INPUT_REQUIRED_MESSAGE);
-  }
+  const normalizedInput = requireNonEmptyInput(input, BUILD_INPUT_REQUIRED_MESSAGE);
 
   const storage = await readStorage();
   const parsedId = parseItemId(normalizedInput);
@@ -106,7 +93,7 @@ export async function createBuild(input: string): Promise<Build> {
     const task = storage.tasks.find((item) => item.id === taskId);
 
     if (!task) {
-      throw new Error(`Task not found: ${taskId}`);
+      throw new Error(createNotFoundMessage("task", taskId));
     }
 
     targetTaskId = task.id;
@@ -152,11 +139,7 @@ export type ItemStatusResponse =
     };
 
 export async function getItemStatus(id: string): Promise<ItemStatusResponse> {
-  const parsed = parseItemId(id);
-
-  if (!parsed) {
-    throw new Error(INVALID_ITEM_ID_MESSAGE);
-  }
+  const parsed = parseItemIdOrThrow(id);
 
   const storage = await readStorage();
 
@@ -164,7 +147,7 @@ export async function getItemStatus(id: string): Promise<ItemStatusResponse> {
     const spark = storage.sparks.find((item) => item.id === parsed.normalized);
 
     if (!spark) {
-      throw new Error(`Spark not found: ${parsed.normalized}`);
+      throw new Error(createNotFoundMessage("spark", parsed.normalized));
     }
 
     return {
@@ -179,7 +162,7 @@ export async function getItemStatus(id: string): Promise<ItemStatusResponse> {
     const task = storage.tasks.find((item) => item.id === parsed.normalized);
 
     if (!task) {
-      throw new Error(`Task not found: ${parsed.normalized}`);
+      throw new Error(createNotFoundMessage("task", parsed.normalized));
     }
 
     return {
@@ -194,7 +177,7 @@ export async function getItemStatus(id: string): Promise<ItemStatusResponse> {
   const build = storage.builds.find((item) => item.id === parsed.normalized);
 
   if (!build) {
-    throw new Error(`Build not found: ${parsed.normalized}`);
+    throw new Error(createNotFoundMessage("build", parsed.normalized));
   }
 
   return {
