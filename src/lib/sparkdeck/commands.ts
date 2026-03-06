@@ -5,6 +5,8 @@ import type { Spark, SparkId, Task } from "./types";
 export const SPARK_INPUT_REQUIRED_MESSAGE = "Please provide an idea description.";
 export const FORGE_INPUT_REQUIRED_MESSAGE =
   "Please provide a Spark ID or task description.";
+export const INVALID_ITEM_ID_MESSAGE =
+  "Invalid ID format. Use SPARK-001, TASK-001, or BUILD-001.";
 
 function normalizeInputText(inputText: string): string {
   return inputText.trim();
@@ -81,4 +83,81 @@ export async function createTaskFromInput(input: string): Promise<Task> {
   await writeStorage(storage);
 
   return task;
+}
+
+export type ItemStatusResponse =
+  | {
+      type: "spark";
+      id: string;
+      title: string;
+      status: Spark["status"];
+    }
+  | {
+      type: "task";
+      id: string;
+      title: string;
+      status: Task["status"];
+      sourceSparkId: SparkId | null;
+    }
+  | {
+      type: "build";
+      id: string;
+      status: "pending" | "running" | "completed" | "failed";
+      targetTaskId: string | null;
+      targetText: string | null;
+    };
+
+export async function getItemStatus(id: string): Promise<ItemStatusResponse> {
+  const parsed = parseItemId(id);
+
+  if (!parsed) {
+    throw new Error(INVALID_ITEM_ID_MESSAGE);
+  }
+
+  const storage = await readStorage();
+
+  if (parsed.kind === "spark") {
+    const spark = storage.sparks.find((item) => item.id === parsed.normalized);
+
+    if (!spark) {
+      throw new Error(`Spark not found: ${parsed.normalized}`);
+    }
+
+    return {
+      type: "spark",
+      id: spark.id,
+      title: spark.title,
+      status: spark.status
+    };
+  }
+
+  if (parsed.kind === "task") {
+    const task = storage.tasks.find((item) => item.id === parsed.normalized);
+
+    if (!task) {
+      throw new Error(`Task not found: ${parsed.normalized}`);
+    }
+
+    return {
+      type: "task",
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      sourceSparkId: task.sourceSparkId
+    };
+  }
+
+  const build = storage.builds.find((item) => item.id === parsed.normalized);
+
+  if (!build) {
+    throw new Error(`Build not found: ${parsed.normalized}`);
+  }
+
+  return {
+    type: "build",
+    id: build.id,
+    status: build.status,
+    targetTaskId: build.targetTaskId,
+    targetText: build.targetText
+  };
 }
