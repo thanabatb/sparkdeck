@@ -1,10 +1,12 @@
-import { generateTaskId, parseItemId } from "./ids";
+import { generateBuildId, generateTaskId, parseItemId } from "./ids";
 import { readStorage, reserveNextSparkId, writeStorage } from "./storage";
-import type { Spark, SparkId, Task } from "./types";
+import type { Build, Spark, SparkId, Task, TaskId } from "./types";
 
 export const SPARK_INPUT_REQUIRED_MESSAGE = "Please provide an idea description.";
 export const FORGE_INPUT_REQUIRED_MESSAGE =
   "Please provide a Spark ID or task description.";
+export const BUILD_INPUT_REQUIRED_MESSAGE =
+  "Please provide a Task ID or build target description.";
 export const INVALID_ITEM_ID_MESSAGE =
   "Invalid ID format. Use SPARK-001, TASK-001, or BUILD-001.";
 
@@ -83,6 +85,48 @@ export async function createTaskFromInput(input: string): Promise<Task> {
   await writeStorage(storage);
 
   return task;
+}
+
+export async function createBuild(input: string): Promise<Build> {
+  const normalizedInput = normalizeInputText(input);
+
+  if (!normalizedInput) {
+    throw new Error(BUILD_INPUT_REQUIRED_MESSAGE);
+  }
+
+  const storage = await readStorage();
+  const parsedId = parseItemId(normalizedInput);
+  const timestamp = new Date().toISOString();
+
+  let targetTaskId: TaskId | null = null;
+  let targetText: string | null = normalizedInput;
+
+  if (parsedId?.kind === "task") {
+    const taskId = parsedId.normalized as TaskId;
+    const task = storage.tasks.find((item) => item.id === taskId);
+
+    if (!task) {
+      throw new Error(`Task not found: ${taskId}`);
+    }
+
+    targetTaskId = task.id;
+    targetText = null;
+  }
+
+  const build: Build = {
+    id: generateBuildId(storage.counters.build),
+    targetTaskId,
+    targetText,
+    status: "pending",
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+
+  storage.counters.build += 1;
+  storage.builds.push(build);
+  await writeStorage(storage);
+
+  return build;
 }
 
 export type ItemStatusResponse =
