@@ -1,8 +1,17 @@
-import { NextResponse } from "next/server";
+import { getItemStatus } from "@/lib/sparkdeck/commands";
+import {
+  createSlackTextResponse,
+  formatErrorResponse,
+  formatItemStatusResponse
+} from "@/lib/sparkdeck/formatters";
+import { parseSlackSlashCommandPayload } from "@/lib/sparkdeck/parse";
 
-export async function POST() {
-  return NextResponse.json(
-    { message: "TODO: /check command handler is not implemented yet." },
-    { status: 501 }
-  );
+export async function POST(request: Request): Promise<Response> {
+  try {
+    const payload = await parseSlackSlashCommandPayload(request);
+    const itemStatus = await getItemStatus(payload.text);
+    return createSlackTextResponse(formatItemStatusResponse(itemStatus));
+  } catch (error) {
+    return createSlackTextResponse(formatErrorResponse(error));
+  }
 }
