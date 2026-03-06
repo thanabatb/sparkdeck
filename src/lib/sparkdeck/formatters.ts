@@ -90,6 +90,33 @@ export function createSlackTextResponse(text: string, status = 200): Response {
   });
 }
 
+export function formatHelpResponse(): string {
+  return [
+    "SparkDeck Commands",
+    "",
+    "/spark <idea>",
+    "Capture a new idea.",
+    "",
+    "/forge <spark-id | text>",
+    "Convert idea into a task.",
+    "",
+    "/build <task-id | text>",
+    "Create a build entry.",
+    "",
+    "/check <id>",
+    "Check the status of an item.",
+    "",
+    "/list [sparks | tasks | builds]",
+    "List stored items.",
+    "",
+    "/update <id> <status>",
+    "Update item status.",
+    "",
+    "/help",
+    "Show this command guide."
+  ].join("\n");
+}
+
 function toEpochMillis(value: string): number {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
