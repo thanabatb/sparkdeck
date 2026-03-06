@@ -23,10 +23,10 @@ export const BUILD_INPUT_REQUIRED_MESSAGE = VALIDATION_MESSAGES.buildInputRequir
 export const INVALID_ITEM_ID_MESSAGE = VALIDATION_MESSAGES.invalidIdFormat;
 export const UPDATE_ID_REQUIRED_MESSAGE = VALIDATION_MESSAGES.idRequired;
 export const UPDATE_STATUS_REQUIRED_MESSAGE = VALIDATION_MESSAGES.statusRequired;
+export const UPDATE_INPUT_REQUIRED_MESSAGE = "Please provide an item ID and status.";
 
 export const ALLOWED_SPARK_STATUSES: SparkStatus[] = [
   "inbox",
-  "expanded",
   "forged",
   "archived"
 ];
@@ -250,6 +250,69 @@ export async function updateBuildStatus(id: string, status: string): Promise<Bui
   await writeStorage(storage);
 
   return build;
+}
+
+function toGenericNotFoundMessage(id: string): string {
+  return `Item not found: ${id}`;
+}
+
+function shouldMapToGenericNotFound(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.startsWith("Spark not found:") ||
+    error.message.startsWith("Task not found:") ||
+    error.message.startsWith("Build not found:")
+  );
+}
+
+interface UpdateInput {
+  id: string;
+  status: string;
+}
+
+export function parseUpdateInput(input: string): UpdateInput {
+  const normalized = input.trim();
+
+  if (!normalized) {
+    throw new Error(UPDATE_INPUT_REQUIRED_MESSAGE);
+  }
+
+  const parts = normalized.split(/\s+/);
+
+  if (parts.length !== 2) {
+    throw new Error(UPDATE_INPUT_REQUIRED_MESSAGE);
+  }
+
+  return {
+    id: parts[0],
+    status: parts[1]
+  };
+}
+
+export async function updateItemStatusFromInput(input: string): Promise<Spark | Task | Build> {
+  const { id, status } = parseUpdateInput(input);
+  const parsed = parseItemIdOrThrow(id);
+
+  try {
+    if (parsed.kind === "spark") {
+      return await updateSparkStatus(parsed.normalized, status);
+    }
+
+    if (parsed.kind === "task") {
+      return await updateTaskStatus(parsed.normalized, status);
+    }
+
+    return await updateBuildStatus(parsed.normalized, status);
+  } catch (error) {
+    if (shouldMapToGenericNotFound(error)) {
+      throw new Error(toGenericNotFoundMessage(parsed.normalized));
+    }
+
+    throw error;
+  }
 }
 
 export type ItemStatusResponse =
