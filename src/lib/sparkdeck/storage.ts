@@ -216,6 +216,39 @@ async function ensureCountersInitialized(): Promise<void> {
   }
 }
 
+async function reserveCounterViaRpc(kind: EntityKind): Promise<unknown> {
+  const supabase = getSupabaseAdminClient();
+
+  const primary = await supabase.rpc("reserve_next_counter", {
+    counter_name: kind
+  });
+
+  if (!primary.error) {
+    return primary.data;
+  }
+
+  const couldBeArgNameMismatch = primary.error.message.includes(
+    "Could not find the function public.reserve_next_counter(counter_name)"
+  );
+
+  if (!couldBeArgNameMismatch) {
+    throwStorageError(`Failed to reserve ${kind} ID`, primary.error.message);
+  }
+
+  const fallback = await supabase.rpc("reserve_next_counter", {
+    p_counter_name: kind
+  });
+
+  if (fallback.error) {
+    throwStorageError(
+      `Failed to reserve ${kind} ID`,
+      `${fallback.error.message}. Ensure function public.reserve_next_counter(counter_name text) exists, then run: NOTIFY pgrst, 'reload schema';`
+    );
+  }
+
+  return fallback.data;
+}
+
 export function getStorageFilePath(): string {
   return "supabase://sparkdeck";
 }
@@ -301,16 +334,7 @@ export async function writeStorage(data: SparkDeckData): Promise<void> {
 
 export async function reserveNextId(kind: EntityKind): Promise<ItemId> {
   await ensureCountersInitialized();
-  const supabase = getSupabaseAdminClient();
-
-  const { data, error } = await supabase.rpc("reserve_next_counter", {
-    counter_name: kind
-  });
-
-  if (error) {
-    throwStorageError(`Failed to reserve ${kind} ID`, error.message);
-  }
-
+  const data = await reserveCounterViaRpc(kind);
   const nextCounter = parseReservedCounterValue(data, kind);
   return generateId(kind, nextCounter);
 }
